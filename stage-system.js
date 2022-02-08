@@ -547,6 +547,7 @@ class stgSysClass {
     if (typeof _cue.action.coneOuterAngle !== "undefined")
       _component.audio.panner.coneOuterAngle = _cue.action.coneOuterAngle;
 
+    if (typeof _cue.action.coneOuterGain !== "undefined")
       _component.audio.panner.coneOuterGain = _cue.action.coneOuterGain;
   }
 
