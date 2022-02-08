@@ -8,22 +8,23 @@ class stgSysClass {
     this.listCue = [];
     this.mapItem = {}; // NO ITEM CALLED "webcam_item_unique""
     this.listAnim = [];
+    this.listMorph = [];
     this.hubChannel = hubChannel;
 
     this.indexStylus = 0;
 
+    this.spokeMap;
+
 		// regCheck
 		this.reg = {};
 		this.reg.interval = null;
-		this.reg.timeout = null;
-		this.reg.OK = false;
 
   }
 
   init(_username) {
 
-    //fetch("https://tstwebui.glitch.me/db.json")
-    fetch(proxiedUrlFor("https://tstwebui.glitch.me/db.json"))
+    fetch("https://tstwebui.glitch.me/dbTEST.json")
+    //fetch(proxiedUrlFor("https://tstwebui.glitch.me/db.json"))
       .then(function(response) {
         return response.json();
       })
@@ -91,7 +92,30 @@ class stgSysClass {
 
 					// C] Launch regCheck
 					// TODO, regcheck as callback when web browser want a new frame?
-       	this.reg.interval = setInterval(() => this.regCheck(), 1000);
+        let readyToCheck = setInterval(() => {
+
+			    if(AFRAME.scenes[0].is("entered")) {
+            clearInterval(readyToCheck);
+				    setTimeout(() => {
+                // C.1] Init
+                // C.1.1] Creating spokeMap
+	            this.spokeMap = AFRAME.scenes[0].sceneEl.object3D.children[12].children[0].children[0].children[0].children;
+							console.log("SpokeMap");
+							console.log(this.spokeMap);
+	
+								// C.2] Creation of list of morph
+							this.initMorph()
+							console.log("list of morph");
+							console.log(this.listMorph);
+
+                // C.2] reg
+              this.reg.interval = setInterval(() => {this.regCheck(), 20});
+            }, 1000); // not sure why the timeout
+			    }
+			    return;
+        }, 100);
+
+
 
       })
       .catch(function(err) {
@@ -99,19 +123,66 @@ class stgSysClass {
       });
   }
 
-	regCheck() {
-		if(!this.reg.OK) { // TODO check if stil necessary
-			if(AFRAME.scenes[0].is("entered") && this.reg.timeout == null) {
-				this.reg.timeout = setTimeout(() => this.reg.OK = true, 1000);
-			}
-			return;
-		}
+	initMorph() {
 
 		this.listCue.forEach( _cue => {
+			let morph = {}; // name, point of proximity, radius, rule of update, morphDictIndex
+
+			// 1) Checking if object exist
+			let refObj = this.spokeMap.filter( x => x.name == _cue.target.src)[0]
+			if(typeof refObj === "undefined") {
+				console.error("couldn't find a morphTarget with obj of name; " + _cue.target.src);
+				return;	
+			}
+
+			// 2) Get position
+			morph.position = new THREE.Vector3();
+			refObj.children[0].children[0].children[0].getWorldPosition(morph.position)
+			
+			// 3) Check if have something to apply morph to
+		
+			let hasMorph = false;
+			refObj.traverseVisible( (_obj) => {
+				// 3.1) does it have morphtargets?
+				if(typeof _obj.morphTargetDictionary === "undefined")
+					return;
+
+				// 3.2) does it have the right morphtarget?
+				let indexMorph = _obj.morphTargetDictionary[_cue.action.morphName];
+				if(typeof indexMorph === "undefined") {
+				console.error("couldn't find a morphTarget of name: "+ _cue.action.morphName  +", with obj of name; " + _cue.target.src);
+				console.log(_obj);
+			
+					return;
+				}
+				
+				hasMorph = true;
+				morph.obj = _obj;
+				morph.index = indexMorph;
+			});
+
+			// 4) Keep needed info from cue
+			morph.distMin = _cue.action.distanceMin;
+			morph.distMax = _cue.action.distanceMax;
+
+			if(hasMorph)
+				this.listMorph.push(morph);
+
+		});
+  }
+
+	regCheck() {
+
+      // A] Update morphtargets
+		this.listMorph.forEach( _morph => {
+          this.updateMorphTarget(_morph)
+		});
+
+      // B] Check for triggers to play new cues
+		this.listCue.forEach( _cue => {
+
 			if(_cue.trigger.played)
 				return;
-
-			console.log(_cue);
 
 			switch(_cue.trigger.type) {
 			case "start":
@@ -476,7 +547,6 @@ class stgSysClass {
     if (typeof _cue.action.coneOuterAngle !== "undefined")
       _component.audio.panner.coneOuterAngle = _cue.action.coneOuterAngle;
 
-    if (typeof _cue.action.coneOuterGain !== "undefined")
       _component.audio.panner.coneOuterGain = _cue.action.coneOuterGain;
   }
 
@@ -490,6 +560,55 @@ class stgSysClass {
     window[_objectName][_functionName](_parameter);
   }
 
+
+  updateMorphTarget(_morph) {
+   
+    // 1) Caluclate value from distance
+    let myPos = AFRAME.scenes[0].querySelector("#avatar-rig").object3D.position;
+		let dist = myPos.distanceTo(_morph.position);
+    let val = THREE.MathUtils.clamp( THREE.MathUtils.mapLinear ( dist, _morph.distMin, _morph.distMax, 0, 1 ), 0, 1)
+
+    // 2) Applying to correct target
+		_morph.obj.morphTargetInfluences[_morph.index] = val;
+
+  }
+/*
+  updateMorphTarget(_cue) {
+   
+    // should do all the check at start up / init, not in regCheck
+
+    // 1) Checking if object exist
+		let refObj = this.spokeMap.filter( x => x.name == _cue.target.src)[0]
+		if(typeof refObj === "undefined")
+			return;
+
+    // 2) Check what is the new value of the morphtarget	
+    let myPos = AFRAME.scenes[0].querySelector("#avatar-rig").object3D.position;
+    let diffPos = new THREE.Vector3();
+    refObj.children[0].children[0].children[0].getWorldPosition(diffPos)
+    diffPos.sub(myPos);	
+		let dist = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
+    let val = THREE.MathUtils.clamp( THREE.MathUtils.mapLinear ( dist, _cue.action.distanceMin, _cue.action.distanceMax, 0, 1 ), 0, 1)
+
+    
+    // 3) applying to all sub objects concerned
+
+    refObj.traverseVisible( (_obj) => {
+      // 3.1) does it have morphtargets?
+		  if(typeof _obj.morphTargetDictionary === "undefined")
+        return;
+
+      // 3.2) does it have the right morphtarget?
+		  let indexMorph = _obj.morphTargetDictionary[_cue.action.morphName];
+		  if(typeof indexMorph === "undefined")
+			  return;
+
+      // 3.3) ... then update the morphtarget influence
+		  _obj.morphTargetInfluences[indexMorph] = val;
+    });
+
+  }
+*/
   applyTransformToItem(_tr, _cue) {
     let myObj = this.mapItem[_cue.target.src].object3D;
     this.mapItem[_cue.target.src].object3D.matrixAutoUpdate = true;
