@@ -573,43 +573,7 @@ class stgSysClass {
 		_morph.obj.morphTargetInfluences[_morph.index] = val;
 
   }
-/*
-  updateMorphTarget(_cue) {
-   
-    // should do all the check at start up / init, not in regCheck
 
-    // 1) Checking if object exist
-		let refObj = this.spokeMap.filter( x => x.name == _cue.target.src)[0]
-		if(typeof refObj === "undefined")
-			return;
-
-    // 2) Check what is the new value of the morphtarget	
-    let myPos = AFRAME.scenes[0].querySelector("#avatar-rig").object3D.position;
-    let diffPos = new THREE.Vector3();
-    refObj.children[0].children[0].children[0].getWorldPosition(diffPos)
-    diffPos.sub(myPos);	
-		let dist = Math.sqrt(diffPos.x * diffPos.x + diffPos.z * diffPos.z);
-    let val = THREE.MathUtils.clamp( THREE.MathUtils.mapLinear ( dist, _cue.action.distanceMin, _cue.action.distanceMax, 0, 1 ), 0, 1)
-
-    
-    // 3) applying to all sub objects concerned
-
-    refObj.traverseVisible( (_obj) => {
-      // 3.1) does it have morphtargets?
-		  if(typeof _obj.morphTargetDictionary === "undefined")
-        return;
-
-      // 3.2) does it have the right morphtarget?
-		  let indexMorph = _obj.morphTargetDictionary[_cue.action.morphName];
-		  if(typeof indexMorph === "undefined")
-			  return;
-
-      // 3.3) ... then update the morphtarget influence
-		  _obj.morphTargetInfluences[indexMorph] = val;
-    });
-
-  }
-*/
   applyTransformToItem(_tr, _cue) {
     let myObj = this.mapItem[_cue.target.src].object3D;
     this.mapItem[_cue.target.src].object3D.matrixAutoUpdate = true;
