@@ -23,8 +23,8 @@ class stgSysClass {
 
   init(_username) {
 
-    fetch("https://tstwebui.glitch.me/dbTEST.json")
-    //fetch(proxiedUrlFor("https://tstwebui.glitch.me/db.json"))
+    //fetch("https://tstwebui.glitch.me/db.json")
+		fetch(proxiedUrlFor("https://tstwebui.glitch.me/db.json"))
       .then(function(response) {
         return response.json();
       })
@@ -388,12 +388,16 @@ class stgSysClass {
 
     // B] Classic 3D objects
     let el = document.createElement("a-entity");
-    el.setAttribute("networked", { template: "#interactable-media" });
+		if(_cue.action.projection == "360-equirectangular") {
+			console.log("avoiding interactable");
+		} else {
+    	el.setAttribute("networked", { template: "#interactable-media" });
+		}
     AFRAME.scenes[0].appendChild(el);
     this.mapItem[_cue.name] = el;
     this.mapItem[_cue.name].listAnim = [];
 
-    el.setAttribute("media-loader", { src: _cue.target.src, resolve: true });
+    el.setAttribute("media-loader", { src: _cue.target.src, resolve: true, mediaOptions: {projection: _cue.action.projection} });
 
     if (_cue.action.position == undefined) {
       // TEMPORARY, until we find a common design
